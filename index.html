@@ -52,6 +52,14 @@
             font-size: 4rem;
             font-weight: bold;
             color: #fff;
+            transition: all 0.3s ease; /* Smooth transition for hover effect */
+            display: inline-block; /* Ensure only the text resizes */
+        }
+
+        /* Hover effect for "Chamelon Hub" */
+        h1:hover {
+            font-size: 5rem; /* Increase size on hover */
+            color: #00ff88; /* Change color to green on hover */
         }
 
         .buttons {
@@ -189,7 +197,7 @@
                 this.y = Math.random() * canvas.height;
                 this.size = Math.random() * 10 + 5; // Slightly larger stars
                 this.speed = Math.random() * 0.3 + 0.1;
-                this.rotation = Math.random() * 0.3 + 0.1;
+                this.rotation = Math.random() * 100 + 0.1;
                 this.twinkle = Math.random() * 0.8 + 0.5; // Twinkle effect
             }
 
