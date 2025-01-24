@@ -181,14 +181,14 @@
         canvas.height = window.innerHeight;
 
         let stars = [];
-        const numStars = 200;
+        const numStars = 313;
 
         class Star {
             constructor() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
-                this.size = Math.random() * 7 + 3; // Slightly larger stars
-                this.speed = Math.random() * 0.7 + 0.1;
+                this.size = Math.random() * 13 + 3; // Slightly larger stars
+                this.speed = Math.random() * 0.3 + 0.1;
                 this.twinkle = Math.random() * 0.8 + 0.5; // Twinkle effect
             }
 
@@ -198,14 +198,14 @@
                     this.y = 0;
                     this.x = Math.random() * canvas.width;
                 }
-                this.twinkle = Math.random() * 0.5 + 0.5; // Random twinkle effect
+                this.twinkle = Math.random() * 0.9 + 0.5; // Random twinkle effect
             }
 
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate((Math.PI / 180) * 45); // Rotate to create a star shape
-                ctx.fillStyle = `rgba(255, 255, 255, ${this.twinkle})`; // Brighter and twinkling
+                ctx.fillStyle = `rgba(500, 255, 500, ${this.twinkle})`; // Brighter and twinkling
                 ctx.beginPath();
                 for (let i = 0; i < 5; i++) {
                     ctx.lineTo(0, this.size);
