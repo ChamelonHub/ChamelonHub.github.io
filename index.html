@@ -190,18 +190,19 @@
 
         let stars = [];
         const numStars = 200;
+        let shootingStars = [];
         let mouse = { x: undefined, y: undefined };
 
         class Star {
             constructor() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
-                this.size = Math.random() * 9 + 5; // Slightly larger stars
-                this.speed = Math.random() * 0.6 + 0.1;
+                this.size = Math.random() * 3 + 2; // Slightly larger stars
+                this.speed = Math.random() * 0.2 + 0.1;
                 this.rotation = Math.random() * 360; // Random initial rotation
                 this.rotationSpeed = Math.random() * 0.05 + 0.01; // Random rotation speed
                 this.twinkle = Math.random() * 0.5 + 0.5; // Twinkle effect
-                this.glowColor = Math.random() < 0.3 ? '#00ff88' : 'white'; // 20% chance of green glow
+                this.glowColor = Math.random() < 0.2 ? '#00ff88' : 'white'; // 20% chance of green glow
             }
 
             update() {
@@ -213,8 +214,8 @@
 
                     if (distance < 100) { // If the star is close to the cursor
                         const angle = Math.atan2(dy, dx);
-                        this.x += Math.cos(angle) * 1.3; // Move away from the cursor
-                        this.y += Math.sin(angle) * 1.3;
+                        this.x += Math.cos(angle) * 2; // Move away from the cursor
+                        this.y += Math.sin(angle) * 2;
                     }
                 }
 
@@ -232,7 +233,7 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate((Math.PI / 180) * this.rotation); // Apply rotation
-                ctx.shadowBlur = 33; // Glow effect
+                ctx.shadowBlur = 10; // Glow effect
                 ctx.shadowColor = this.glowColor; // Glow color (green or white)
                 ctx.fillStyle = `rgba(255, 255, 255, ${this.twinkle})`; // Brighter and twinkling
                 ctx.beginPath();
@@ -247,19 +248,71 @@
             }
         }
 
+        class ShootingStar {
+            constructor() {
+                this.x = Math.random() * canvas.width; // Spawn at random x position at the top
+                this.y = 0; // Spawn at the top of the screen
+                this.size = Math.random() * 2 + 1;
+                this.speedX = Math.random() * 5 + 2; // Horizontal speed
+                this.speedY = Math.random() * 5 + 2; // Vertical speed
+                this.opacity = 1;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.opacity -= 0.01; // Fade out over time
+
+                // Reset shooting star when it goes off-screen or fades out
+                if (this.x > canvas.width || this.y > canvas.height || this.opacity <= 0) {
+                    this.x = Math.random() * canvas.width;
+                    this.y = 0; // Reset to the top of the screen
+                    this.opacity = 1;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x - this.speedX * 2, this.y - this.speedY * 2);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.lineWidth = this.size;
+                ctx.shadowBlur = 10; // Glow effect
+                ctx.shadowColor = 'white'; // Glow color
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
         function initStars() {
             stars = [];
             for (let i = 0; i < numStars; i++) {
                 stars.push(new Star());
             }
+
+            // Add a few shooting stars
+            shootingStars = [];
+            for (let i = 0; i < 3; i++) {
+                shootingStars.push(new ShootingStar());
+            }
         }
 
         function animateStars() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw regular stars
             stars.forEach(star => {
                 star.update();
                 star.draw();
             });
+
+            // Draw shooting stars
+            shootingStars.forEach(star => {
+                star.update();
+                star.draw();
+            });
+
             requestAnimationFrame(animateStars);
         }
 
