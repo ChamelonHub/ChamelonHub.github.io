@@ -1,4 +1,4 @@
- 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -32,15 +32,16 @@
             font-size: 4rem;
             font-weight: bold;
             color: #fff;
+            transform: scale(5);
             opacity: 0; /* Start invisible */
             transform: translateY(20px); /* Start slightly below */
             animation: fadeInSlideUp 1.5s ease-out forwards;
+            transform: scale(1);
             transition: transform 3s ease, color 0.7s ease;
-            transform: scale(2);
         }
 
         h1:hover {
-            transform: scale(1); /* Scale up on hover */
+            transform: scale(2.1); /* Scale up on hover */
             color: #00ff88; /* Change color on hover */
         }
 
@@ -48,7 +49,6 @@
             0% {
                 opacity: 0;
                 transform: translateY(20px);
-                transform: scale(2.1);
             }
             100% {
                 opacity: 1;
@@ -184,14 +184,13 @@
 </head>
 <body>
     <div class="container">
-        <h1>Chamelon Games</h1>
+        <h1>Chamelon Hub</h1>
         <div class="buttons">
-            <button class="button-17" onclick="crash()">Exit</button>
-            <button class="button-17" onclick="openUrl('thechamelongod.github.io/')">Chamelon Proxy</button>
-            <button class="button-17" onclick="openUrl('chamelongamehub.github.io/')">Chamelon Games</button>
-            <button class="button-17" onclick="openUrl('chamelonmisc.github.io/')">Chamelon Misc</button>
+            <button class="button-17" onclick="openUrl('thechamelongod.github.io/')">Chamelon Proxy's</button>
+            <button class="button-17" onclick="openUrl('gointerstellar.app')">Chamelon Games</button>
+            <button class="button-17" onclick="openUrl('typeracer.gq')">Chamelon Misc</button>
         </div>
-        <input id="chamelon" placeholder="Enter URL here... [Not all links will work]" />
+        <input id="chamelon" placeholder="Enter Rizz URL here..." />
         <a href="https://github.com/TheChamelonGod/thechamelongod.github.io/archive/refs/tags/Chamelon.zip">Download this website as an HTML file</a>
         <footer>&copy;2025 Chamelon Industries. All Rights Reserved.</footer>
         <footer>&copy;Chamelon</footer>
