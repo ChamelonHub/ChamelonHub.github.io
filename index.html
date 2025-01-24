@@ -190,32 +190,50 @@
 
         let stars = [];
         const numStars = 200;
+        let mouse = { x: undefined, y: undefined };
 
         class Star {
             constructor() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
-                this.size = Math.random() * 13 + 5; // Slightly larger stars
-                this.speed = Math.random() * 0.6 + 0.3;
+                this.size = Math.random() * 9 + 5; // Slightly larger stars
+                this.speed = Math.random() * 0.6 + 0.1;
                 this.rotation = Math.random() * 360; // Random initial rotation
                 this.rotationSpeed = Math.random() * 0.05 + 0.01; // Random rotation speed
                 this.twinkle = Math.random() * 0.5 + 0.5; // Twinkle effect
+                this.glowColor = Math.random() < 0.3 ? '#00ff88' : 'white'; // 20% chance of green glow
             }
 
             update() {
+                // Move stars away from the cursor
+                if (mouse.x !== undefined && mouse.y !== undefined) {
+                    const dx = this.x - mouse.x;
+                    const dy = this.y - mouse.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 100) { // If the star is close to the cursor
+                        const angle = Math.atan2(dy, dx);
+                        this.x += Math.cos(angle) * 1.3; // Move away from the cursor
+                        this.y += Math.sin(angle) * 1.3;
+                    }
+                }
+
+                // Normal star movement
                 this.y += this.speed;
                 if (this.y > canvas.height) {
                     this.y = 0;
                     this.x = Math.random() * canvas.width;
                 }
                 this.rotation += this.rotationSpeed; // Apply rotation
-                this.twinkle = Math.random() * 1 + 0.5; // Random twinkle effect
+                this.twinkle = Math.random() * 0.5 + 0.5; // Random twinkle effect
             }
 
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate((Math.PI / 180) * this.rotation); // Apply rotation
+                ctx.shadowBlur = 33; // Glow effect
+                ctx.shadowColor = this.glowColor; // Glow color (green or white)
                 ctx.fillStyle = `rgba(255, 255, 255, ${this.twinkle})`; // Brighter and twinkling
                 ctx.beginPath();
                 for (let i = 0; i < 5; i++) {
@@ -247,6 +265,17 @@
 
         initStars();
         animateStars();
+
+        // Track mouse movement
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.clientX;
+            mouse.y = event.clientY;
+        });
+
+        window.addEventListener('mouseout', () => {
+            mouse.x = undefined;
+            mouse.y = undefined;
+        });
 
         // Resize canvas on window resize
         window.addEventListener('resize', () => {
