@@ -1,0 +1,506 @@
+let planets = [];
+let portals = [];
+let numPlanets = 4;
+let G = 120;
+let destabilise = 0.15;
+let isPaused = false;
+let isEditorMode = false;
+let selectedPlanet = null;
+let selectedPortal = null;
+let isSettingDirection = false;
+let dragStartPos = null;
+let isDraggingEnabled = false;
+let isSimulatingAllTrails = false;
+let allTrailPoints = [];
+let timeScale = 1;
+let planetScale = 1;
+let planetColor = '#FFFFFF';
+let dt = 1;
+let currentEditorMode = 'planet';
+let currentSeed;
+
+// Portal creation variables
+let isCreatingPortal = false;
+let portalStartPos = null;
+
+// Zoom and scroll variables
+let zoom = 1;
+let offsetX = 0;
+let offsetY = 0;
+let isDragging = false;
+let dragStartX, dragStartY;
+
+function setup() {
+    createCanvas(windowWidth, windowHeight);
+    currentSeed = Math.floor(random(100000));
+    randomSeed(currentSeed);
+    initializePlanets();
+
+    // Time scale slider
+    document.getElementById('time-scale').addEventListener('input', (e) => {
+        dt = parseFloat(e.target.value); // Ensure dt is updated when the slider changes
+    });
+
+    // Planet scale slider
+    document.getElementById('planet-scale').addEventListener('input', (e) => {
+        planetScale = parseFloat(e.target.value);
+        if (selectedPlanet) {
+            selectedPlanet.d = selectedPlanet.mass * 2 * planetScale;
+            selectedPlanet.mass = selectedPlanet.d / 2;
+        }
+    });
+
+    // Planet color picker
+    document.getElementById('planet-color').addEventListener('input', (e) => {
+        planetColor = e.target.value;
+        if (selectedPlanet) {
+            selectedPlanet.color = planetColor;
+        }
+    });
+}
+
+function initializePlanets() {
+    planets = [];
+    for (let i = 0; i < numPlanets; i++) {
+        let mass = random(5, 15);
+        let radius = random(100, min(windowWidth / 2, windowHeight / 2));
+        let angle = random(0, TWO_PI);
+        let planetPos = createVector(radius * cos(angle), radius * sin(angle));
+
+        // Find direction of orbit and set velocity
+        let planetVel = planetPos.copy();
+        planetVel.rotate(HALF_PI);
+        planetVel.normalize();
+        planetVel.mult(sqrt((G * mass) / (radius)));
+        planetVel.mult(random(1 - destabilise, 1 + destabilise));
+
+        planets.push(new Body(mass, planetPos, planetVel));
+    }
+}
+
+function draw() {
+    background(0);
+
+    // Apply zoom and scroll transformations
+    translate(width / 2 + offsetX, height / 2 + offsetY);
+    scale(zoom);
+
+    if (!isPaused) {
+        // Calculate forces between all pairs of planets
+        for (let i = 0; i < planets.length; i++) {
+            for (let j = i + 1; j < planets.length; j++) {
+                planets[i].attract(planets[j]);
+                planets[j].attract(planets[i]);
+            }
+        }
+
+        // Update and display planets
+        for (let i = numPlanets - 1; i >= 0; i--) {
+            planets[i].move();
+            planets[i].show();
+        }
+
+        // Check for portal interactions
+        for (let planet of planets) {
+            for (let portal of portals) {
+                if (portal.contains(planet.pos) && planet.cooldown <= 0) {
+                    // Teleport the planet to the other end of the portal
+                    if (dist(planet.pos.x, planet.pos.y, portal.pos.x, portal.pos.y) < 50) {
+                        planet.pos = portal.exit.copy();
+                    } else if (dist(planet.pos.x, planet.pos.y, portal.exit.x, portal.exit.y) < 50) {
+                        planet.pos = portal.pos.copy();
+                    }
+                    planet.cooldown = 10; // Lower cooldown time to 10 frames
+                }
+            }
+        }
+
+        // Update cooldown timers
+        for (let planet of planets) {
+            if (planet.cooldown > 0) {
+                planet.cooldown--;
+            }
+        }
+    } else {
+        // Display the current state without updating
+        for (let i = numPlanets - 1; i >= 0; i--) {
+            planets[i].show();
+        }
+
+        // Show pause menu if planet editor is not open
+        if (!selectedPlanet && !selectedPortal && isPaused) {
+            document.getElementById('pause-menu').style.display = 'block';
+        } else {
+            document.getElementById('pause-menu').style.display = 'none';
+        }
+    }
+
+    // Draw portals
+    for (let portal of portals) {
+        portal.show();
+    }
+
+    if (isSimulatingAllTrails) {
+        simulateAllTrails();
+        for (let i = 0; i < planets.length; i++) {
+            drawTrail(allTrailPoints[i], 255);
+        }
+    }
+}
+
+function mouseWheel(event) {
+    // Adjust zoom level based on scroll input, centered on the mouse cursor
+    let zoomFactor = 1.1;
+    let newZoom;
+    if (event.deltaY < 0) {
+        newZoom = zoom * zoomFactor; // Zoom in
+    } else {
+        newZoom = zoom / zoomFactor; // Zoom out
+    }
+    newZoom = constrain(newZoom, 0.1, 10); // Limit zoom range
+
+    // Calculate the new offset to keep the zoom centered on the mouse
+    let mouseXBefore = (mouseX - width / 2 - offsetX) / zoom;
+    let mouseYBefore = (mouseY - height / 2 - offsetY) / zoom;
+    zoom = newZoom;
+    let mouseXAfter = (mouseX - width / 2 - offsetX) / zoom;
+    let mouseYAfter = (mouseY - height / 2 - offsetY) / zoom;
+    offsetX += (mouseXAfter - mouseXBefore) * zoom;
+    offsetY += (mouseYAfter - mouseYBefore) * zoom;
+
+    return false; // Prevent default scrolling behavior
+}
+
+function mousePressed() {
+    if (isEditorMode && currentEditorMode === 'planet') {
+        // Check if a planet is clicked
+        let planetClicked = false;
+        for (let i = planets.length - 1; i >= 0; i--) {
+            let d = dist((mouseX - width / 2 - offsetX) / zoom, (mouseY - height / 2 - offsetY) / zoom, planets[i].pos.x, planets[i].pos.y);
+            if (d < planets[i].d / 2) {
+                selectedPlanet = planets[i];
+                document.getElementById('planet-ui').style.display = 'block';
+                document.getElementById('pause-menu').style.display = 'none';
+                planetClicked = true;
+                break;
+            }
+        }
+    }
+
+    if (isEditorMode && currentEditorMode === 'portal') {
+        // Check if a portal is clicked
+        let portalClicked = false;
+        for (let i = portals.length - 1; i >= 0; i--) {
+            let d1 = dist((mouseX - width / 2 - offsetX) / zoom, (mouseY - height / 2 - offsetY) / zoom, portals[i].pos.x, portals[i].pos.y);
+            let d2 = dist((mouseX - width / 2 - offsetX) / zoom, (mouseY - height / 2 - offsetY) / zoom, portals[i].exit.x, portals[i].exit.y);
+            if (d1 < 50 || d2 < 50) {
+                selectedPortal = portals[i];
+                document.getElementById('portal-specific-ui').style.display = 'block';
+                document.getElementById('pause-menu').style.display = 'none';
+                portalClicked = true;
+                break;
+            }
+        }
+    }
+
+    // Start dragging to scroll (only if not in editor mode or pause menu)
+    if (!isEditorMode && !isPaused) {
+        isDragging = true;
+        dragStartX = mouseX - offsetX;
+        dragStartY = mouseY - offsetY;
+    }
+
+    // Portal creation logic
+    if (isCreatingPortal) {
+        if (!portalStartPos) {
+            // First click: set the start position of the portal
+            portalStartPos = createVector((mouseX - width / 2 - offsetX) / zoom, (mouseY - height / 2 - offsetY) / zoom);
+        } else {
+            // Second click: set the exit position and create the portal
+            let portalExitPos = createVector((mouseX - width / 2 - offsetX) / zoom, (mouseY - height / 2 - offsetY) / zoom);
+            portals.push(new Portal(portalStartPos, portalExitPos));
+            portalStartPos = null; // Reset for the next portal
+            isCreatingPortal = false; // Stop portal creation mode
+        }
+    }
+}
+
+function mouseDragged() {
+    if (isDragging) {
+        offsetX = mouseX - dragStartX;
+        offsetY = mouseY - dragStartY;
+    }
+
+    if (isEditorMode && currentEditorMode === 'planet' && selectedPlanet) {
+        if (isDraggingEnabled) {
+            // Drag the selected planet
+            selectedPlanet.pos.x = (mouseX - width / 2 - offsetX) / zoom;
+            selectedPlanet.pos.y = (mouseY - height / 2 - offsetY) / zoom;
+        } else if (isSettingDirection) {
+            // Set the direction of the selected planet
+            if (!dragStartPos) {
+                dragStartPos = selectedPlanet.pos.copy();
+            }
+            let dragEndPos = createVector((mouseX - width / 2 - offsetX) / zoom, (mouseY - height / 2 - offsetY) / zoom);
+            let force = p5.Vector.sub(dragStartPos, dragEndPos).mult(0.1); // Reverse direction
+            selectedPlanet.vel = force;
+        }
+    }
+
+    if (isEditorMode && currentEditorMode === 'portal' && selectedPortal) {
+        // Drag the selected portal's end that was clicked
+        let d1 = dist((mouseX - width / 2 - offsetX) / zoom, (mouseY - height / 2 - offsetY) / zoom, selectedPortal.pos.x, selectedPortal.pos.y);
+        let d2 = dist((mouseX - width / 2 - offsetX) / zoom, (mouseY - height / 2 - offsetY) / zoom, selectedPortal.exit.x, selectedPortal.exit.y);
+        if (d1 < 50) {
+            // Dragging the start of the portal
+            selectedPortal.pos.x = (mouseX - width / 2 - offsetX) / zoom;
+            selectedPortal.pos.y = (mouseY - height / 2 - offsetY) / zoom;
+        } else if (d2 < 50) {
+            // Dragging the end of the portal
+            selectedPortal.exit.x = (mouseX - width / 2 - offsetX) / zoom;
+            selectedPortal.exit.y = (mouseY - height / 2 - offsetY) / zoom;
+        }
+    }
+}
+
+function mouseReleased() {
+    isDragging = false;
+    if (isEditorMode && currentEditorMode === 'planet' && selectedPlanet && isSettingDirection) {
+        dragStartPos = null;
+    }
+}
+
+function keyPressed() {
+    // Toggle pause state when "P" is pressed
+    if (key === 'p' || key === 'P') {
+        isPaused = !isPaused;
+        document.getElementById('pause-menu').style.display = isPaused ? 'block' : 'none';
+    }
+
+    // Toggle editor mode when "E" is pressed
+    if (key === 'e' || key === 'E') {
+        isEditorMode = !isEditorMode;
+        currentEditorMode = 'planet';
+        document.getElementById('planet-ui').style.display = isEditorMode ? 'block' : 'none';
+        document.getElementById('portal-ui').style.display = 'none';
+        document.getElementById('portal-specific-ui').style.display = 'none';
+
+        // Ensure pause menu visibility is correct
+        document.getElementById('pause-menu').style.display = isPaused ? 'block' : 'none';
+    }
+
+    // Toggle portal editor mode when "O" is pressed
+    if (key === 'o' || key === 'O') {
+        isEditorMode = !isEditorMode;
+        currentEditorMode = 'portal';
+        document.getElementById('portal-ui').style.display = isEditorMode ? 'block' : 'none';
+        document.getElementById('planet-ui').style.display = 'none';
+        document.getElementById('portal-specific-ui').style.display = 'none';
+
+        // Ensure pause menu visibility is correct
+        document.getElementById('pause-menu').style.display = isPaused ? 'block' : 'none';
+    }
+
+    // Add a new planet when "N" is pressed (only if in editor mode)
+    if (isEditorMode && currentEditorMode === 'planet' && key === 'n') {
+        let mass = random(5, 15);
+        let planetPos = createVector((mouseX - width / 2 - offsetX) / zoom, (mouseY - height / 2 - offsetY) / zoom);
+        let planetVel = createVector(0, 0); // Start with zero velocity
+        let newPlanet = new Body(mass, planetPos, planetVel);
+        newPlanet.color = '#FFFFFF'; // Set planet color to white
+        planets.push(newPlanet);
+        numPlanets++;
+    }
+
+    // Display the current seed when "T" is pressed
+    if (key === 't' || key === 'T') {
+        alert(`Current Seed: ${currentSeed}`);
+    }
+
+    // Load a seed when "L" is pressed
+    if (key === 'l' || key === 'L') {
+        let seed = prompt("Enter the seed:");
+        if (seed !== null) {
+            currentSeed = parseInt(seed);
+            randomSeed(currentSeed);
+            initializePlanets();
+        }
+    }
+}
+
+function enableDrag() {
+    isDraggingEnabled = true;
+    isSettingDirection = false;
+}
+
+function enableSetDirection() {
+    isSettingDirection = true;
+    isDraggingEnabled = false;
+}
+
+function enableSimulateAllTrails() {
+    isSimulatingAllTrails = !isSimulatingAllTrails;
+    if (isSimulatingAllTrails) {
+        simulateAllTrails();
+    }
+}
+
+
+function destroyPlanet() {
+    if (selectedPlanet) {
+        let index = planets.indexOf(selectedPlanet);
+        if (index !== -1) {
+            planets.splice(index, 1);
+            numPlanets--;
+            selectedPlanet = null;
+            document.getElementById('planet-ui').style.display = 'none';
+        }
+    }
+}
+
+function killOffscreenPlanets() {
+    for (let i = planets.length - 1; i >= 0; i--) {
+        let planet = planets[i];
+        let screenX = (planet.pos.x * zoom) + width / 2 + offsetX;
+        let screenY = (planet.pos.y * zoom) + height / 2 + offsetY;
+        if (screenX < 0 || screenX > width || screenY < 0 || screenY > height) {
+            planets.splice(i, 1);
+            numPlanets--;
+        }
+    }
+}
+
+function makePortal() {
+    isCreatingPortal = true;
+    portalStartPos = null; // Reset portal start position
+}
+
+function destroyAllPortals() {
+    portals = []; // Clear all portals
+}
+
+function destroyPortal() {
+    if (selectedPortal) {
+        // Remove the selected portal
+        let index = portals.indexOf(selectedPortal);
+        if (index !== -1) portals.splice(index, 1);
+        selectedPortal = null;
+        document.getElementById('portal-specific-ui').style.display = 'none';
+    }
+}
+
+
+function simulateAllTrails() {
+    allTrailPoints = Array(planets.length).fill().map(() => []);
+    let simPlanets = planets.map(p => new Body(p.mass, p.pos.copy(), p.vel.copy()));
+
+    for (let i = 0; i < 500; i++) {
+        // Calculate forces between all pairs of planets
+        for (let j = 0; j < simPlanets.length; j++) {
+            for (let k = 0; k < simPlanets.length; k++) {
+                if (k !== j) {
+                    let r = p5.Vector.sub(simPlanets[k].pos, simPlanets[j].pos);
+                    let f = (G * simPlanets[k].mass * simPlanets[j].mass) / (r.magSq());
+                    r.setMag(f);
+                    simPlanets[j].vel.add(p5.Vector.div(r, simPlanets[j].mass));
+                }
+            }
+        }
+
+        for (let j = 0; j < simPlanets.length; j++) {
+            simPlanets[j].pos.add(p5.Vector.mult(simPlanets[j].vel, dt));
+        }
+
+        // Simulate portal interactions
+        for (let planet of simPlanets) {
+            for (let portal of portals) {
+                if (portal.contains(planet.pos) && planet.cooldown <= 0) {
+                    // Teleport the planet to the other end of the portal
+                    if (dist(planet.pos.x, planet.pos.y, portal.pos.x, portal.pos.y) < 50) {
+                        planet.pos = portal.exit.copy();
+                    } else if (dist(planet.pos.x, planet.pos.y, portal.exit.x, portal.exit.y) < 50) {
+                        planet.pos = portal.pos.copy();
+                    }
+                    planet.cooldown = 10; // Lower cooldown time to 10 frames
+                }
+            }
+        }
+
+        // Update cooldown timers
+        for (let planet of simPlanets) {
+            if (planet.cooldown > 0) {
+                planet.cooldown--;
+            }
+        }
+
+        // Store trail points
+        for (let j = 0; j < simPlanets.length; j++) {
+            allTrailPoints[j].push(simPlanets[j].pos.copy());
+        }
+    }
+}
+
+function drawTrail(points, trailColor = 64) {
+    noFill();
+    stroke(trailColor);
+    strokeWeight(2);
+    beginShape();
+    for (let point of points) {
+        vertex(point.x, point.y);
+    }
+    endShape();
+}
+
+function Body(_mass, _pos, _vel) {
+    this.mass = _mass;
+    this.pos = _pos;
+    this.vel = _vel;
+    this.d = this.mass * 2;
+    this.color = '#FFFFFF';
+    this.cooldown = 0; // Cooldown timer for portals
+
+    this.show = function() {
+        fill(this.color);
+        noStroke();
+        ellipse(this.pos.x, this.pos.y, this.d, this.d);
+    };
+
+    this.move = function() {
+        // Remove dt from the movement calculations
+        this.pos.x += this.vel.x;
+        this.pos.y += this.vel.y;
+    };
+
+    this.attract = function(child) {
+        let r = dist(this.pos.x, this.pos.y, child.pos.x, child.pos.y);
+        if (r > 5) {
+            let f = (this.pos.copy()).sub(child.pos);
+            f.setMag((G * this.mass * child.mass) / (r * r)); // Remove dt from force calculation
+            child.applyForce(f);
+        }
+    };
+
+    this.applyForce = function(f) {
+        this.vel.x += f.x / this.mass;
+        this.vel.y += f.y / this.mass;
+    };
+}
+
+function Portal(pos, exit) {
+    this.pos = pos;
+    this.exit = exit;
+
+    this.show = function() {
+        stroke(0, 255, 0);
+        strokeWeight(2);
+        fill(0, 255, 0, 50);
+        ellipse(this.pos.x, this.pos.y, 40, 40);
+        ellipse(this.exit.x, this.exit.y, 40, 40);
+        line(this.pos.x, this.pos.y, this.exit.x, this.exit.y);
+    };
+
+    this.contains = function(point) {
+        // Increase the hitbox range to 50 pixels
+        return dist(point.x, point.y, this.pos.x, this.pos.y) < 50 || dist(point.x, point.y, this.exit.x, this.exit.y) < 50;
+    };
+}
