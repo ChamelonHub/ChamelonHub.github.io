@@ -166,13 +166,7 @@
 <body>
     <!-- Canvas for Star Particles -->
     <canvas id="starCanvas"></canvas>
-<nav>
-    <ul>
-        <li>
-            <a href="chamelonproxy"></a>
-        </li>
-    </ul>
-</nav>
+
     <!-- Website Content -->
     <div class="container">
         <h1>Chamelon Hub</h1>
@@ -339,12 +333,13 @@
             initStars();
         });
 
-       // Open URL Function
+        // Open URL Function
         function openUrl(url) {
-            let win = window.open("about:blank");
             if (!url.startsWith("https://") && !url.startsWith("http://")) {
                 url = "https://" + url;
             }
+            window.open(url, '_blank');
+        }
 
         // Enter Key Listener for Input Field
         document.addEventListener("DOMContentLoaded", function () {
